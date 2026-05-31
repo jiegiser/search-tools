@@ -1,0 +1,107 @@
+
+# 查看更多 .gitignore 配置 -> https://help.github.com/articles/ignoring-files/
+
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+.flattened-pom.xml
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+*.class
+target/*
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+/build/
+
+
+
+### admin-web ###
+
+# dependencies
+**/node_modules
+
+# roadhog-api-doc ignore
+/src/utils/request-temp.js
+_roadhog-api-doc
+
+# production
+/dist
+/.vscode
+/logs
+temp
+
+# misc
+.DS_Store
+npm-debug.log*
+yarn-error.log
+
+/coverage
+.idea
+yarn.lock
+package-lock.json
+*bak
+.vscode
+.qoder
+.m2
+tools
+testdata
+native
+temp-lib
+# 根目录脚本已归类到 doc/scripts/ 下，根目录不再允许散放
+/*.py
+/*.ps1
+# doc/scripts/ 下的脚本需要版本管理
+!doc/scripts/
+
+# visual studio code
+.history
+*.log
+
+functions/mock
+.temp/**
+
+# umi
+.umi
+.umi-production
+
+# screenshot
+screenshot
+.firebase
+sessionStore
+.trae
+
+# JVM 崩溃与堆转储文件
+hs_err_pid*.log
+replay_pid*.log
+java_pid*.hprof
+
+# 临时测试数据文件
+test_*.json
+test_*.xml
+!pom.xml
+test_*.zip
+*.class
+
+.qoder
+gdal
+temp-lib
+dist

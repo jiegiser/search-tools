@@ -1,0 +1,2 @@
+-- 测试数据由 DataInitializer.java 自动初始化
+-- 此文件保留为空，避免SQL语法错误
