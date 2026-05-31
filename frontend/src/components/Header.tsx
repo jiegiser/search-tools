@@ -39,6 +39,9 @@ function Header() {
             <Link to="/crawl" className={`nav-link ${isActive('/crawl')}`}>
               爬取
             </Link>
+            <Link to="/pojie" className={`nav-link ${isActive('/pojie')}`}>
+              52pojie
+            </Link>
             <Link to="/admin" className={`nav-link ${isActive('/admin')}`}>
               管理
             </Link>

@@ -1,4 +1,4 @@
-package com.searchtools.service;
+﻿package com.searchtools.service;
 
 import com.searchtools.model.Resource;
 import com.searchtools.model.SearchHistory;
@@ -119,11 +119,46 @@ public class SearchService {
         
         // 获取所有资源并手动过滤
         List<Resource> allResources = resourceRepository.findAll();
-        List<Resource> filteredResources = allResources.stream()
-                .filter(r -> (r.getTitle() != null && r.getTitle().contains(keyword)) ||
-                        (r.getDescription() != null && r.getDescription().contains(keyword)))
-                .collect(Collectors.toList());
+        // Tokenized search: split keyword into multiple tokens
+        // Smart tokenization: split by Chinese/Latin boundaries and spaces
+        java.util.List<String> tokenList = new java.util.ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean prevIsChinese = false;
+        String lk = keyword.toLowerCase();
+        for (int ci = 0; ci < lk.length(); ci++) {
+            char ch = lk.charAt(ci);
+            boolean isChinese = ch > 127;
+            boolean isWhitespace = Character.isWhitespace(ch);
+            if (isWhitespace) {
+                if (sb.length() > 0) { tokenList.add(sb.toString()); sb.setLength(0); }
+                prevIsChinese = false;
+                continue;
+            }
+            if (prevIsChinese && !isChinese && sb.length() > 0) {
+                tokenList.add(sb.toString());
+                sb.setLength(0);
+            } else if (!prevIsChinese && isChinese && sb.length() > 0) {
+                tokenList.add(sb.toString());
+                sb.setLength(0);
+            }
+            sb.append(ch);
+            prevIsChinese = isChinese;
+        }
+        if (sb.length() > 0) tokenList.add(sb.toString());
+        String[] keywordTokens = tokenList.toArray(new String[0]);
         
+        List<Resource> filteredResources = allResources.stream()
+                .filter(r -> {
+                    String title = r.getTitle() != null ? r.getTitle().toLowerCase() : "";
+                    String desc = r.getDescription() != null ? r.getDescription().toLowerCase() : "";
+                    for (String kw : keywordTokens) {
+                        if (!kw.isEmpty() && !title.contains(kw) && !desc.contains(kw)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
         // 手动分页
         int start = page * pageSize;
         int end = Math.min(start + pageSize, filteredResources.size());

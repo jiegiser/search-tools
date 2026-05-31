@@ -4,7 +4,16 @@ const API_BASE_URL = '/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 120000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 用于爬取等长时间操作的实例
+const apiLongTimeout = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 300000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -128,6 +137,60 @@ export const getCrawlHistory = async (page = 0, pageSize = 20): Promise<any> => 
 export const getAllResources = async (page = 0, pageSize = 20): Promise<SearchResult> => {
   const response = await api.get('/resources/all', {
     params: { page, pageSize },
+  });
+  return response.data;
+};
+
+// 52pojie API
+export interface PoJieResource {
+  id: number;
+  title: string;
+  threadUrl: string;
+  panUrl: string;
+  panType: string;
+  extractCode: string;
+  author: string;
+  categoryName: string;
+  replyCount: number;
+  viewCount: number;
+  notified: boolean;
+  createdAt: string;
+}
+
+export const getPoJieResults = async (page = 0, pageSize = 20): Promise<any> => {
+  const response = await apiLongTimeout.get('/crawl/pojie/results', {
+    params: { page, pageSize },
+  });
+  return response.data;
+};
+
+export const searchPoJie = async (keyword: string, page = 0, pageSize = 20): Promise<any> => {
+  const response = await apiLongTimeout.get('/crawl/pojie/search', {
+    params: { keyword, page, pageSize },
+  });
+  return response.data;
+};
+
+export const startPoJieCrawl = async (): Promise<any> => {
+  const response = await apiLongTimeout.post('/crawl/pojie/start');
+  return response.data;
+};
+
+export const loginPoJie = async (username: string, password: string): Promise<any> => {
+  const response = await apiLongTimeout.post('/crawl/pojie/login', null, {
+    params: { username, password },
+  });
+  return response.data;
+};
+
+export const sendPoJieNotification = async (): Promise<any> => {
+  const response = await apiLongTimeout.post('/crawl/pojie/notify');
+  return response.data;
+};
+
+export const searchByEngine = async (keyword: string, engine = 'baidu', pages = 1): Promise<any> => {
+  const response = await apiLongTimeout.post('/crawl/search-engine', null, {
+    params: { keyword, engine, pages },
   });
   return response.data;
 };

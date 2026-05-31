@@ -1,4 +1,4 @@
-package com.searchtools.search;
+﻿package com.searchtools.search;
 
 import com.searchtools.model.Resource;
 import com.searchtools.model.SearchResult;
@@ -166,18 +166,51 @@ public class SearchEngine {
             IndexSearcher searcher = searcherManager.acquire();
 
             try {
-                // 使用WildcardQuery支持中文搜索
                 // 转义Lucene特殊字符
                 String escapedKeyword = escapeLuceneSpecial(keyword.toLowerCase());
                 
+                // Smart tokenization: split by Chinese/Latin boundaries and spaces
+                java.util.List<String> tokenList = new java.util.ArrayList<>();
+                StringBuilder sb = new StringBuilder();
+                boolean prevIsChinese = false;
+                for (int ci = 0; ci < escapedKeyword.length(); ci++) {
+                    char ch = escapedKeyword.charAt(ci);
+                    boolean isChinese = ch > 127;
+                    boolean isWhitespace = Character.isWhitespace(ch);
+                    if (isWhitespace) {
+                        if (sb.length() > 0) { tokenList.add(sb.toString()); sb.setLength(0); }
+                        prevIsChinese = false;
+                        continue;
+                    }
+                    if (prevIsChinese && !isChinese && sb.length() > 0) {
+                        tokenList.add(sb.toString());
+                        sb.setLength(0);
+                    } else if (!prevIsChinese && isChinese && sb.length() > 0) {
+                        tokenList.add(sb.toString());
+                        sb.setLength(0);
+                    }
+                    sb.append(ch);
+                    prevIsChinese = isChinese;
+                }
+                if (sb.length() > 0) tokenList.add(sb.toString());
+                String[] keywords = tokenList.toArray(new String[0]);
+                
                 BooleanQuery.Builder builder = new BooleanQuery.Builder();
                 
-                // 在标题和描述中搜索
-                Query titleQuery = new WildcardQuery(new Term("title", "*" + escapedKeyword + "*"));
-                Query descQuery = new WildcardQuery(new Term("description", "*" + escapedKeyword + "*"));
-                
-                builder.add(titleQuery, BooleanClause.Occur.SHOULD);
-                builder.add(descQuery, BooleanClause.Occur.SHOULD);
+                // 对每个分词构建查询（必须匹配所有词）
+                for (String kw : keywords) {
+                    if (!kw.isEmpty()) {
+                        // 在标题和描述中搜索
+                        Query titleQuery = new WildcardQuery(new Term("title", "*" + kw + "*"));
+                        Query descQuery = new WildcardQuery(new Term("description", "*" + kw + "*"));
+                        
+                        BooleanQuery.Builder kwBuilder = new BooleanQuery.Builder();
+                        kwBuilder.add(titleQuery, BooleanClause.Occur.SHOULD);
+                        kwBuilder.add(descQuery, BooleanClause.Occur.SHOULD);
+                        
+                        builder.add(kwBuilder.build(), BooleanClause.Occur.SHOULD);
+                    }
+                }
                 
                 Query query = builder.build();
 

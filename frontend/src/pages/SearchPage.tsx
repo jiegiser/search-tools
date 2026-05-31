@@ -31,20 +31,33 @@ function SearchPage() {
     }
   };
 
+  const [crawlStatus, setCrawlStatus] = useState<string | null>(null);
+
   const performSearch = async (query: string, pageNum: number) => {
     if (!query.trim()) return;
 
     setLoading(true);
     setError(null);
+    setCrawlStatus('正在搜索本地资源...');
 
     try {
       const result = await search(query, pageNum);
       setResults(result);
       setPage(pageNum);
+      if (result.totalCount > 0) {
+        setCrawlStatus(null);
+      } else {
+        setCrawlStatus('本地无结果，正在全网爬取（百度+必应+Google）...');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || '搜索失败，请稍后重试');
+      if (err.code === 'ECONNABORTED') {
+        setError('搜索超时，全网爬取耗时较长，请稍后重试');
+      } else {
+        setError(err.response?.data?.message || '搜索失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
+      setCrawlStatus(null);
     }
   };
 
@@ -107,7 +120,7 @@ function SearchPage() {
                     </span>
                   </span>
                   {resource.extractCode && (
-                    <span className="meta-item">提取码: {resource.extractCode}</span>
+                    <span className="meta-item">提取码: <strong>{resource.extractCode}</strong></span>
                   )}
                   {resource.resourceTypeName && (
                     <span className="meta-item">类型: {resource.resourceTypeName}</span>
@@ -116,6 +129,34 @@ function SearchPage() {
                     <span className="meta-item">来源: {resource.sourceSite}</span>
                   )}
                   <span className="meta-item">点击: {resource.clickCount}</span>
+                  <div className="resource-actions" onClick={(e) => e.stopPropagation()}>
+                    <a
+                      href={resource.panUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-primary"
+                      style={{ marginRight: '8px', padding: '2px 10px', fontSize: '12px', textDecoration: 'none', borderRadius: '4px', background: '#1890ff', color: '#fff' }}
+                    >
+                      打开链接
+                    </a>
+                    {resource.extractCode && (
+                      <button
+                        className="btn btn-sm"
+                        style={{ padding: '2px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid #d9d9d9', background: '#fff', cursor: 'pointer' }}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await navigator.clipboard.writeText(resource.extractCode);
+                            const btn = e.target as HTMLButtonElement;
+                            btn.textContent = '已复制';
+                            setTimeout(() => { btn.textContent = '复制提取码'; }, 1500);
+                          } catch {}
+                        }}
+                      >
+                        复制提取码
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -186,7 +227,10 @@ function SearchPage() {
       {loading && (
         <div className="loading">
           <div className="spinner"></div>
-          <p>正在搜索中...</p>
+          <p>{crawlStatus || '正在搜索中...'}</p>
+          <p style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
+            首次搜索可能需要较长时间（全网爬取百度、必应、Google）
+          </p>
         </div>
       )}
 
