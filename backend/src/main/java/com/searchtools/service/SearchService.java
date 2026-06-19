@@ -1,4 +1,4 @@
-﻿package com.searchtools.service;
+package com.searchtools.service;
 
 import com.searchtools.model.Resource;
 import com.searchtools.model.SearchHistory;
@@ -7,6 +7,8 @@ import com.searchtools.repository.ResourceRepository;
 import com.searchtools.repository.SearchHistoryRepository;
 import com.searchtools.search.SearchEngine;
 import com.searchtools.crawler.SearchEngineCrawler;
+import com.searchtools.crawler.PlaywrightCrawler;
+import com.searchtools.crawler.PanResourceApiClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,6 +32,9 @@ public class SearchService {
 
     private final SearchEngine searchEngine;
     private final SearchEngineCrawler searchEngineCrawler;
+    private final PlaywrightCrawler playwrightCrawler;
+    private final PanResourceApiClient panResourceApiClient;
+    private final ResourceValidator resourceValidator;
     private final ResourceRepository resourceRepository;
     private final SearchHistoryRepository searchHistoryRepository;
 
@@ -85,26 +90,74 @@ public class SearchService {
     /**
      * 同步爬取全网资源（百度 + 必应 + Google），返回新入库的资源数量
      */
+    /**
+     * 同步爬取全网资源，返回新入库的资源数量
+     * 使用多种方式: PanSou API -> Playwright浏览器爬取 -> 传统爬虫
+     */
     private int crawlWebResources(String keyword) {
         int totalNew = 0;
+        
+        // 优化搜索关键词
+        String searchKeyword = keyword;
+        if (!keyword.contains("网盘") && !keyword.contains("下载") && !keyword.contains("资源")) {
+            searchKeyword = keyword + " 网盘 下载";
+        }
+        
         try {
-            log.info("开始全网爬取: {}", keyword);
-            // 使用百度搜索
-            List<Resource> baiduResults = searchEngineCrawler.searchBaidu(keyword, 1);
-            log.info("百度爬取完成: {}个新资源", baiduResults.size());
-            totalNew += baiduResults.size();
-
-            // 使用必应搜索
-            List<Resource> bingResults = searchEngineCrawler.searchBing(keyword, 1);
-            log.info("必应爬取完成: {}个新资源", bingResults.size());
-            totalNew += bingResults.size();
-
-            // 使用Google搜索
-            List<Resource> googleResults = searchEngineCrawler.searchGoogle(keyword, 1);
-            log.info("Google爬取完成: {}个新资源", googleResults.size());
-            totalNew += googleResults.size();
-
+            log.info("开始全网爬取: {} (搜索关键词: {})", keyword, searchKeyword);
+            
+            // 方式1: 优先使用PanSou API (开源网盘资源聚合API)
+            try {
+                List<Resource> pansouResults = panResourceApiClient.searchResources(searchKeyword);
+                log.info("PanSou API完成: {}个新资源", pansouResults.size());
+                totalNew += pansouResults.size();
+            } catch (Exception e) {
+                log.warn("PanSou API失败: {}", e.getMessage());
+            }
+            
+            // 方式2: 使用Playwright无头浏览器爬取百度
+            try {
+                List<Resource> playwrightBaiduResults = playwrightCrawler.searchBaiduWithBrowser(searchKeyword, 1);
+                log.info("Playwright百度爬取完成: {}个新资源", playwrightBaiduResults.size());
+                totalNew += playwrightBaiduResults.size();
+            } catch (Exception e) {
+                log.warn("Playwright百度爬取失败: {}", e.getMessage());
+            }
+            
+            // 方式3: 使用Playwright无头浏览器爬取必应
+            try {
+                List<Resource> playwrightBingResults = playwrightCrawler.searchBingWithBrowser(searchKeyword, 1);
+                log.info("Playwright必应爬取完成: {}个新资源", playwrightBingResults.size());
+                totalNew += playwrightBingResults.size();
+            } catch (Exception e) {
+                log.warn("Playwright必应爬取失败: {}", e.getMessage());
+            }
+            
+            // 方式4: 传统爬虫作为后备
+            try {
+                List<Resource> baiduResults = searchEngineCrawler.searchBaidu(searchKeyword, 1);
+                log.info("传统百度爬取完成: {}个新资源", baiduResults.size());
+                totalNew += baiduResults.size();
+            } catch (Exception e) {
+                log.warn("传统百度爬取失败: {}", e.getMessage());
+            }
+            
             log.info("全网爬取完成，共{}个新资源", totalNew);
+            
+            // 验证新爬取的资源可用性
+            if (totalNew > 0) {
+                log.info("开始验证资源可用性...");
+                List<Resource> allResources = resourceRepository.findAll();
+                int validCount = resourceValidator.validateResources(allResources);
+                log.info("资源验证完成: {}/{} 个链接可用", validCount, allResources.size());
+                
+                // 清理无效资源
+                int invalidCount = resourceValidator.cleanupInvalidResources();
+                if (invalidCount > 0) {
+                    log.info("清理了{}个无效资源", invalidCount);
+                    totalNew -= invalidCount;
+                }
+            }
         } catch (Exception e) {
             log.error("全网爬取失败: {}", keyword, e);
         }

@@ -1,4 +1,4 @@
-﻿package com.searchtools.search;
+package com.searchtools.search;
 
 import com.searchtools.model.Resource;
 import com.searchtools.model.SearchResult;

@@ -85,4 +85,9 @@ public interface ResourceRepository extends JpaRepository<Resource, Long> {
      */
     @Query("SELECT r FROM Resource r WHERE r.title LIKE %:keyword% OR r.description LIKE %:keyword%")
     Page<Resource> findByTitleContainingOrDescriptionContaining(@Param("keyword") String keyword, Pageable pageable);
+
+    /**
+     * 根据有效性查询资源列表
+     */
+    List<Resource> findByIsValid(boolean isValid);
 }

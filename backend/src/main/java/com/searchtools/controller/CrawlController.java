@@ -12,6 +12,7 @@ import com.searchtools.service.CrawlService;
 import com.searchtools.service.EmailNotificationService;
 import com.searchtools.service.LinkValidatorService;
 import com.searchtools.service.ResourcePreviewService;
+import com.searchtools.service.ResourceValidator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,7 @@ public class CrawlController {
     private final PoJieCrawler poJieCrawler;
     private final PoJieResourceRepository poJieResourceRepository;
     private final EmailNotificationService emailNotificationService;
+    private final ResourceValidator resourceValidator;
 
     /**
      * 爬取网页
@@ -398,6 +400,27 @@ public class CrawlController {
             result.put("message", sent ? "通知发送成功" : "通知发送失败");
             result.put("count", unnotifiedResources.size());
         }
+        
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 验证所有资源可用性
+     * 
+     * @return 验证结果
+     */
+    @PostMapping("/validate")
+    public ResponseEntity<Map<String, Object>> validateResources() {
+        log.info("开始验证所有资源可用性");
+        
+        int validCount = resourceValidator.validateAllUnverified();
+        int invalidCount = resourceValidator.cleanupInvalidResources();
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("validCount", validCount);
+        result.put("invalidCount", invalidCount);
+        result.put("message", String.format("验证完成: %d个有效, %d个无效已清理", validCount, invalidCount));
         
         return ResponseEntity.ok(result);
     }
